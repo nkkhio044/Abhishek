@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Serverz Inc Tool Approval</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1b263b;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+        .container {
+            max-width: 260px;
+            padding: 15px;
+            border-radius: 20px;
+            text-align: center;
+            background: rgba(45, 60, 80, 0.4);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(100, 120, 140, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+        h2 { font-size: 1.2em; color: #5bd4d9; margin-bottom: 8px; }
+        .key-box {
+            margin-top: 8px;
+            padding: 6px;
+            background: rgba(20, 30, 40, 0.7);
+            border: 1px solid rgba(100, 120, 140, 0.25);
+            border-radius: 6px;
+            font-family: monospace;
+            color: #a0f0f0;
+            word-break: break-all;
+            font-size: 0.8em;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 8px;
+            background: rgba(30, 40, 50, 0.6);
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        .fb-button {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: linear-gradient(90deg, #1f77f2, #1a5bb2);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(31, 119, 242, 0.3);
+        }
+        .fb-button:hover { transform: scale(1.05); }
+        .admin-button {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: linear-gradient(90deg,#28a745,#218838);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+            cursor: pointer;
+        }
+        .hidden { display: none; }
+        .login-box, .approval-box {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(20, 30, 40, 0.8);
+            border: 1px solid rgba(100, 120, 140, 0.3);
+            border-radius: 8px;
+        }
+        input {
+            width: 90%;
+            margin: 6px 0;
+            padding: 6px;
+            border-radius: 6px;
+            border: none;
+        }
+        table {
+            width: 100%;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        th, td { padding: 4px; text-align: left; }
+        .approve { background: #28a745; color: white; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+        .disapprove { background: #dc3545; color: white; border: none; padding: 3px 6px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Checking Access...</h2>
+        <p>Please wait while we verify your key.</p>
+        <div class="key-box" id="userKeyBox">Loading key...</div>
+        <div class="status" id="statusBox">Loading...</div>
+
+        <a href="Facebook.com/100002357867932" target="_blank" class="fb-button">
+            Contact on Facebook for Approval
+        </a>
+
+        <!-- Admin Panel Button -->
+        <div class="admin-button" onclick="toggleLogin()">Go to Admin Panel</div>
+
+        <!-- Admin Login Form -->
+        <div class="login-box hidden" id="loginBox">
+            <h4>Admin Login</h4>
+            <input type="text" id="adminUser" placeholder="Username">
+            <input type="password" id="adminPass" placeholder="Password">
+            <button class="fb-button" onclick="adminLogin()">Login</button>
+            <div id="loginMsg"></div>
+        </div>
+
+        <!-- Approval Panel -->
+        <div class="approval-box hidden" id="approvalBox">
+            <h4>Approval Panel</h4>
+            <table>
+                <thead>
+                    <tr><th>Key</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="keysTbody">
+                    <tr><td colspan="3">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // user side: fetch key
+        let userKey = localStorage.getItem("userKey");
+        if (!userKey) {
+            userKey = 'key-' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem("userKey", userKey);
+        }
+        document.getElementById("userKeyBox").innerText = "Your Key: " + userKey;
+        fetch("/check_key", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: userKey })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const statusBox = document.getElementById("statusBox");
+            if (data.status === "approved") {
+                statusBox.innerText = "Access Granted! Redirecting...";
+                statusBox.style.background = "#28a745";
+                setTimeout(() => { window.location.href = data.redirect_url; }, 1500);
+            } else if (data.status === "pending") {
+                statusBox.innerText = "Approval Pending. Please wait for admin approval.";
+                statusBox.style.background = "#ffc107"; statusBox.style.color = "#343a40";
+            } else {
+                statusBox.innerText = "Key Disapproved. Please contact admin.";
+                statusBox.style.background = "#dc3545";
+            }
+        });
+
+        // toggle login
+        function toggleLogin() {
+            document.getElementById("loginBox").classList.toggle("hidden");
+        }
+
+        // admin login
+        function adminLogin() {
+            const u = document.getElementById("adminUser").value;
+            const p = document.getElementById("adminPass").value;
+            fetch("/admin/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username: u, password: p })
+            }).then(r => r.json()).then(d => {
+                if (d.ok) {
+                    document.getElementById("loginMsg").innerText = "Login success!";
+                    document.getElementById("loginBox").classList.add("hidden");
+                    loadKeys();
+                } else {
+                    document.getElementById("loginMsg").innerText = "Login failed!";
+                }
+            });
+        }
+
+        // load keys
+        function loadKeys() {
+            fetch("/admin/keys").then(r => r.json()).then(data => {
+                document.getElementById("approvalBox").classList.remove("hidden");
+                const tbody = document.getElementById("keysTbody");
+                tbody.innerHTML = "";
+                for (let k in data) {
+                    const row = data[k];
+                    tbody.innerHTML += `
+                        <tr>
+                          <td>${k}</td>
+                          <td>${row.status}</td>
+                          <td>
+                            <button class="approve" onclick="changeStatus('${k}','approve')">Approve</button>
+                            <button class="disapprove" onclick="changeStatus('${k}','disapprove')">Disapprove</button>
+                          </td>
+                        </tr>`;
+                }
+            });
+        }
+
+        // approve/disapprove
+        function changeStatus(key, action) {
+            fetch("/admin/" + action, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ key })
+            }).then(r => r.json()).then(d => {
+                alert(d.message);
+                loadKeys();
+            });
+        }
+    </script>
+</body>
+  </html>
+          
